@@ -11,6 +11,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.JavaConverters._
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, Statement}
 import java.util
+import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
 
 class DefaultSource extends TableProvider {
@@ -88,19 +89,20 @@ object PostgresPartitionsList {
   def apply(conProps: ConnectionProperties): Array[InputPartition] = {
     val (lowerBound, upperBound) = getTableBoundParams(conProps)
     val partitionSize: Int = conProps.partitionSize
+    val resSeq: immutable.Seq[Long] = lowerBound.to(upperBound).by(partitionSize)
 
-    val partitions = ArrayBuffer[PostgresPartition]()
-    for (limit <- lowerBound.to(upperBound).by(partitionSize)) {
-      val offset: Long = limit + partitionSize - 1
-
-      partitions += new PostgresPartition(
+    val partitions: ArrayBuffer[PostgresPartition] = resSeq.foldLeft(ArrayBuffer.empty[PostgresPartition]) { (acc, el) =>
+      val offset: Long = el + partitionSize - 1
+      val partition: PostgresPartition = new PostgresPartition(
         conProps.url,
         conProps.user,
         conProps.password,
         conProps.tableName,
-        limit,
+        el,
         offset
       )
+
+      acc += partition
     }
 
     partitions.toArray
