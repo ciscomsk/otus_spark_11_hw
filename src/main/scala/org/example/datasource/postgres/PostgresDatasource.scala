@@ -89,20 +89,20 @@ object PostgresPartitionsList {
   def apply(conProps: ConnectionProperties): Array[InputPartition] = {
     val (lowerBound, upperBound) = getTableBoundParams(conProps)
     val partitionSize: Int = conProps.partitionSize
-    val resSeq: immutable.Seq[Long] = lowerBound.to(upperBound).by(partitionSize)
+    val limits: Seq[Long] = lowerBound.to(upperBound).by(partitionSize)
 
-    val partitions: ArrayBuffer[PostgresPartition] = resSeq.foldLeft(ArrayBuffer.empty[PostgresPartition]) { (acc, el) =>
-      val offset: Long = el + partitionSize - 1
+    val partitions: Vector[PostgresPartition] = limits.foldLeft(Vector.empty[PostgresPartition]) { (acc, limit) =>
+      val offset: Long = limit + partitionSize - 1
       val partition: PostgresPartition = new PostgresPartition(
         conProps.url,
         conProps.user,
         conProps.password,
         conProps.tableName,
-        el,
+        limit,
         offset
       )
 
-      acc += partition
+      acc :+ partition
     }
 
     partitions.toArray
